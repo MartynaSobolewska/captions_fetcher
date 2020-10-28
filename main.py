@@ -3,11 +3,12 @@ from selenium.webdriver.common.keys import Keys
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import docx
+from docx import *
 import time
-
 
 # data from user
 
+text = ""
 file_path = ""
 document_name = ""
 generate_definitions_table = False
@@ -67,14 +68,47 @@ def microsoft_login(driver):
         print("wrong login or password.")
 
 
+def get_captions(driver):
+    global text
+    time.sleep(3)
+    tab_header = driver.find_element_by_id("transcriptTabHeader")
+    tab_header.click()
+    time.sleep(2)
+    list_of_all = driver.find_element_by_id("eventTabPanes").find_element_by_id(
+        "transcriptTabPane").find_element_by_class_name("event-tab-scroll-pane").find_element_by_class_name(
+        "event-tab-list")
+    captions_divs = list_of_all.find_elements_by_class_name("index-event")
+    captions_divs_rows = []
+    for div_row in captions_divs:
+        captions_divs_rows.append(div_row.find_element_by_class_name("index-event-row"))
+    captions_text_spans = []
+    for index_row in captions_divs_rows:
+        captions_text_spans.append(index_row.find_element_by_class_name("event-text"))
+    for span in captions_text_spans:
+        text += (span.find_element_by_tag_name("span").text + "\n")
+    print(text)
+
+
+def add_text_to_word_file(heading, text):
+    document = Document(file_path + "\\" + document_name + ".docx")
+    document.add_heading(heading, 1)
+    document.add_paragraph(text)
+    document.save(file_path + "\\" + document_name + ".docx")
+
+
+
 get_basic_data_from_user()
+
 
 # selenium setup
 PATH = "C:\Program Files (x86)\chromedriver.exe"
 driver = webdriver.Chrome(PATH)  # PATH is location of chrome web driver needed to use selenium
 driver.get(panopto_link)
 login_button = driver.find_element_by_id("PageContentPlaceholder_loginControl_externalLoginButton")
-login_button.send_keys(Keys.RETURN) # press enter
+login_button.send_keys(Keys.RETURN)  # press enter
 # now, microsoft login page pops out
 microsoft_login(driver)
-#panopto video page
+# panopto video page
+get_captions(driver)
+# add transcript
+add_text_to_word_file("Captions transcript", text)
